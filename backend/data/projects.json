@@ -1,0 +1,102 @@
+[
+  {
+    "id": "1790500911440573",
+    "type": "estimate",
+    "title": "2",
+    "parameters": {
+      "plotArea": 1200,
+      "builtUpArea": 1200,
+      "floors": 2,
+      "floorHeight": 10,
+      "wallThickness": "9",
+      "includePlastering": true,
+      "concreteGrade": "M20"
+    },
+    "results": {
+      "parameters": {
+        "plotArea": 1200,
+        "builtUpArea": 1200,
+        "floors": 2,
+        "floorHeight": 10,
+        "wallThickness": "9",
+        "includePlastering": true,
+        "concreteGrade": "M20"
+      },
+      "quantities": {
+        "totalBuiltUpSqFt": 2400,
+        "totalBuiltUpSqM": 223,
+        "concreteGrade": "M20",
+        "concreteVolumeM3": 28.8,
+        "brickworkVolumeM3": 59.41,
+        "brickQuantity": 29704,
+        "cementBags": 368,
+        "sandTons": 64.44,
+        "aggregateTons": 36.29,
+        "steelKg": 10800,
+        "steelTons": 10.8,
+        "laborDays": 1920
+      },
+      "costBreakdown": {
+        "cement": 139840,
+        "sand": 77328,
+        "aggregate": 39919,
+        "bricks": 267336,
+        "steel": 702000,
+        "labor": 1440000
+      },
+      "totalCost": 2666423,
+      "currency": "₹"
+    },
+    "createdAt": "2026-09-27T09:21:51.440Z"
+  },
+  {
+    "id": "1790500625306804",
+    "type": "estimate",
+    "title": "1",
+    "parameters": {
+      "plotArea": 1200,
+      "builtUpArea": 600,
+      "floors": 1,
+      "floorHeight": 10,
+      "wallThickness": "9",
+      "includePlastering": true,
+      "concreteGrade": "M15"
+    },
+    "results": {
+      "parameters": {
+        "plotArea": 1200,
+        "builtUpArea": 600,
+        "floors": 1,
+        "floorHeight": 10,
+        "wallThickness": "9",
+        "includePlastering": true,
+        "concreteGrade": "M15"
+      },
+      "quantities": {
+        "totalBuiltUpSqFt": 600,
+        "totalBuiltUpSqM": 55.7,
+        "concreteGrade": "M15",
+        "concreteVolumeM3": 7.2,
+        "brickworkVolumeM3": 21,
+        "brickQuantity": 10502,
+        "cementBags": 94,
+        "sandTons": 21.01,
+        "aggregateTons": 9.5,
+        "steelKg": 2700,
+        "steelTons": 2.7,
+        "laborDays": 480
+      },
+      "costBreakdown": {
+        "cement": 35720,
+        "sand": 25212,
+        "aggregate": 10450,
+        "bricks": 94518,
+        "steel": 175500,
+        "labor": 360000
+      },
+      "totalCost": 701400,
+      "currency": "₹"
+    },
+    "createdAt": "2026-09-27T09:17:05.306Z"
+  }
+]

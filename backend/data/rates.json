@@ -1,0 +1,9 @@
+{
+  "cementRatePerBag": 380,
+  "sandRatePerTon": 1200,
+  "aggregateRatePerTon": 1100,
+  "brickRatePerPiece": 9,
+  "steelRatePerKg": 65,
+  "laborRatePerDay": 750,
+  "currency": "₹"
+}

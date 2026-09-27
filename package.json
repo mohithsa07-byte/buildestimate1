@@ -1,0 +1,12 @@
+{
+  "name": "buildestimate",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Full-stack construction material & cost estimator",
+  "scripts": {
+    "start": "npm --prefix backend start",
+    "backend": "npm --prefix backend start",
+    "frontend": "npm --prefix frontend dev",
+    "dev": "npm --prefix frontend dev"
+  }
+}

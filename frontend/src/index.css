@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Inter", sans-serif;
+  background: #EDEAE2;
+  color: #14212C;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: #E2711D;
+  color: #F8F6F2;
+}
+
+/* Corner-bracket panel motif, like a blueprint annotation frame */
+.blueprint-panel {
+  position: relative;
+  border: 1px solid #C7C0B0;
+  background: #F8F6F2;
+}
+.blueprint-panel::before,
+.blueprint-panel::after {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #1F3A5F;
+  opacity: 0.55;
+}
+.blueprint-panel::before {
+  top: -1px;
+  left: -1px;
+  border-right: none;
+  border-bottom: none;
+}
+.blueprint-panel::after {
+  bottom: -1px;
+  right: -1px;
+  border-left: none;
+  border-top: none;
+}
+
+/* Ruler tick strip used as a section divider */
+.ruler-ticks {
+  background-image: repeating-linear-gradient(
+    90deg,
+    #C7C0B0 0,
+    #C7C0B0 1px,
+    transparent 1px,
+    transparent 8px
+  );
+  height: 10px;
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid #E2711D;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
