@@ -4,6 +4,7 @@ import Hero from './components/Hero';
 import EstimateForm from './components/EstimateForm';
 import ResultsDashboard from './components/ResultsDashboard';
 import ConcreteMix from './components/ConcreteMix';
+import FoundationEstimator from './components/FoundationEstimator';
 import SavedProjects from './components/SavedProjects';
 import { calculateEstimate, fetchRates, updateRates } from './api';
 
@@ -136,6 +137,9 @@ export default function App() {
 
         {/* Concrete Mix Calculator Tab */}
         {activeTab === 'concrete' && <ConcreteMix />}
+        
+        {/* Foundation Estimator Tab */}
+        {activeTab === 'foundation' && <FoundationEstimator rates={rates} />}
 
         {/* Saved Estimates Tab */}
         {activeTab === 'saved' && <SavedProjects />}

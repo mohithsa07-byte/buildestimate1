@@ -188,3 +188,87 @@ export function streamEstimatePdf(res, data) {
 
   doc.end();
 }
+
+const FOUNDATION_LABELS = {
+  isolated: 'Isolated (Pad) Footing',
+  strip: 'Strip (Wall) Footing',
+  raft: 'Raft (Mat) Foundation',
+};
+
+/**
+ * Streams a foundation estimate report as a PDF directly to `res`.
+ * @param {import('express').Response} res
+ * @param {object} data - { title, result, costBreakdown, totalCost, currency }
+ */
+export function streamFoundationPdf(res, data) {
+  const { title, result = {}, costBreakdown = {}, totalCost = 0, currency = '₹' } = data;
+  const { foundationType, inputs = {}, footing = {}, concrete = {}, steelKg, steelTons, pcc = {} } = result;
+
+  const doc = new PDFDocument({ size: 'A4', margin: 50 });
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="buildestimate-foundation-report.pdf"`);
+  doc.pipe(res);
+
+  drawHeader(doc, title || `${FOUNDATION_LABELS[foundationType] || 'Foundation'} Estimate`);
+
+  doc.fontSize(12).fillColor('#0f172a').font('Helvetica-Bold').text('Foundation Type & Design Basis').moveDown(0.3);
+  doc.font('Helvetica');
+
+  const basisPairs = [
+    ['Foundation Type', FOUNDATION_LABELS[foundationType] || foundationType || '—'],
+    ['Soil Bearing Capacity', inputs.sbcTM2 ? `${inputs.sbcTM2} t/m² (${inputs.sbcKNm2} kN/m²)` : '—'],
+    ['Total Building Load', inputs.totalLoadKN ? `${inputs.totalLoadKN} kN` : '—'],
+  ];
+  if (foundationType === 'isolated') {
+    basisPairs.push(
+      ['No. of Columns', inputs.numberOfColumns ?? '—'],
+      ['Load / Column', inputs.loadPerColumnKN ? `${inputs.loadPerColumnKN} kN` : '—'],
+      ['Footing Size', footing.sideM ? `${footing.sideM} m × ${footing.sideM} m` : '—'],
+      ['Footing Depth', footing.depthM ? `${footing.depthM} m` : '—'],
+    );
+  } else if (foundationType === 'strip') {
+    basisPairs.push(
+      ['Wall Length', inputs.wallLengthM ? `${inputs.wallLengthM} m` : '—'],
+      ['Load / Metre', inputs.loadPerMKN ? `${inputs.loadPerMKN} kN/m` : '—'],
+      ['Footing Width', footing.widthM ? `${footing.widthM} m` : '—'],
+      ['Footing Depth', footing.depthM ? `${footing.depthM} m` : '—'],
+    );
+  } else if (foundationType === 'raft') {
+    basisPairs.push(
+      ['Raft Area', footing.areaM2 ? `${footing.areaM2} m²` : '—'],
+      ['Raft Thickness', footing.thicknessM ? `${footing.thicknessM} m` : '—'],
+    );
+  }
+  drawKeyValueGrid(doc, basisPairs);
+
+  doc.fontSize(12).fillColor('#0f172a').font('Helvetica-Bold').text('Material Quantities & Cost').moveDown(0.4);
+  doc.font('Helvetica');
+
+  const rows = [
+    ['Cement (footing + PCC bed)', `${(concrete.cementBags || 0) + (pcc.mix?.cementBags || 0)} bags`, money(currency, costBreakdown.cement)],
+    ['Sand (footing + PCC bed)', `${round2(concrete.sandTons + (pcc.mix?.sandTons || 0))} tons`, money(currency, costBreakdown.sand)],
+    ['Coarse Aggregate', `${round2(concrete.aggregateTons + (pcc.mix?.aggregateTons || 0))} tons`, money(currency, costBreakdown.aggregate)],
+    ['TMT Steel', `${steelKg ?? 0} kg (${steelTons ?? 0} t)`, money(currency, costBreakdown.steel)],
+    ['PCC Leveling Bed', `${pcc.volumeM3 ?? 0} m³ (${PCC_GRADE_LABEL})`, '—'],
+  ];
+
+  drawTable(doc, {
+    headers: ['Item', 'Quantity', 'Cost'],
+    colWidths: [220, 180, 95],
+    rows,
+    totalsRow: ['Total Estimated Cost', '', money(currency, totalCost)],
+  });
+
+  doc.moveDown(1);
+  doc.fontSize(8).fillColor('#94a3b8').text(
+    'This is a preliminary thumb-rule foundation estimate for planning and budgeting purposes only. ' +
+      'Soil bearing capacity, footing size, and reinforcement MUST be verified against an actual soil ' +
+      'investigation report and finalized by a qualified structural engineer before construction.',
+    { width: 495 }
+  );
+
+  doc.end();
+}
+
+const PCC_GRADE_LABEL = 'M10';
+const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;

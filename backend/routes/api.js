@@ -10,7 +10,15 @@ import {
   calculateCosts,
 } from '../utils/formulas.js';
 import { analyzePlan } from '../utils/planAnalysis.js';
-import { streamEstimatePdf } from '../utils/pdfReport.js';
+import { streamEstimatePdf, streamFoundationPdf } from '../utils/pdfReport.js';
+import {
+  SOIL_PRESETS,
+  calculateIsolatedFooting,
+  calculateStripFooting,
+  calculateRaftFoundation,
+  calculateFoundationCost,
+  suggestFoundationType,
+} from '../utils/foundationFormulas.js';
 
 const router = express.Router();
 
@@ -192,7 +200,102 @@ router.post('/estimate/pdf', (req, res) => {
     }
   }
 });
+// ---- foundation ----------------------------------------------------------
+router.get('/foundation/soil-types', (req, res) => {
+  const list = Object.entries(SOIL_PRESETS).map(([key, v]) => ({
+    key, label: v.label, sbcTM2: v.sbcTM2, sbcKNm2: v.sbcKNm2,
+  }));
+  res.json(list);
+});
 
+router.post('/foundation', async (req, res, next) => {
+  try {
+    const b = req.body || {};
+    const foundationType = b.foundationType;
+    if (!['isolated', 'strip', 'raft'].includes(foundationType)) {
+      return res.status(400).json({ error: 'foundationType must be "isolated", "strip", or "raft"' });
+    }
+    if (!isPositive(b.builtUpArea)) {
+      return res.status(400).json({ error: 'Built-up area must be a positive number' });
+    }
+    if (!isPositive(b.floors) || !Number.isInteger(Number(b.floors)) || Number(b.floors) > 100) {
+      return res.status(400).json({ error: 'Number of floors must be a whole number between 1 and 100' });
+    }
+    if (b.soilType && !SOIL_PRESETS[b.soilType] && !isPositive(b.customSbcTM2)) {
+      return res.status(400).json({ error: `Unknown soil type "${b.soilType}"` });
+    }
+    if (b.customSbcTM2 !== undefined && b.customSbcTM2 !== '' && !isPositive(b.customSbcTM2)) {
+      return res.status(400).json({ error: 'Custom soil bearing capacity must be a positive number' });
+    }
+    const concreteGrade = b.concreteGrade || 'M20';
+    if (!NOMINAL_MIXES[concreteGrade]) {
+      return res.status(400).json({ error: `Unknown concrete grade "${concreteGrade}"` });
+    }
+
+    const common = {
+      builtUpArea: Number(b.builtUpArea),
+      floors: Number(b.floors),
+      soilType: b.soilType,
+      customSbcTM2: b.customSbcTM2 !== '' ? b.customSbcTM2 : undefined,
+      concreteGrade,
+    };
+
+    let result;
+    if (foundationType === 'isolated') {
+      if (!isPositive(b.numberOfColumns) || !Number.isInteger(Number(b.numberOfColumns))) {
+        return res.status(400).json({ error: 'Number of columns must be a whole number greater than 0' });
+      }
+      result = calculateIsolatedFooting({ ...common, numberOfColumns: Number(b.numberOfColumns) });
+    } else if (foundationType === 'strip') {
+      if (!isPositive(b.wallLengthM)) {
+        return res.status(400).json({ error: 'Total wall length (in metres) must be a positive number' });
+      }
+      result = calculateStripFooting({ ...common, wallLengthM: Number(b.wallLengthM) });
+    } else {
+      result = calculateRaftFoundation({
+        ...common,
+        plotAreaSqFt: isPositive(b.plotAreaSqFt) ? Number(b.plotAreaSqFt) : undefined,
+      });
+    }
+
+    const stored = await loadRates();
+    const { rates, error } = sanitizeRates(b.rates && typeof b.rates === 'object' ? b.rates : {}, stored);
+    if (error) return res.status(400).json({ error });
+
+    const { costBreakdown, totalCost, combinedMaterials } = calculateFoundationCost(result, rates);
+    const suggestion = suggestFoundationType({
+      floors: common.floors,
+      soilType: common.soilType,
+      customSbcTM2: common.customSbcTM2,
+      constructionType: b.constructionType,
+    });
+
+    res.json({ ...result, costBreakdown, totalCost, combinedMaterials, currency: rates.currency, suggestion });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/foundation/pdf', (req, res) => {
+  const { result, costBreakdown, totalCost, currency, title } = req.body || {};
+  if (!result || typeof result !== 'object' || !costBreakdown || typeof costBreakdown !== 'object') {
+    return res.status(400).json({ error: 'Nothing to export: calculate a foundation estimate first.' });
+  }
+  try {
+    streamFoundationPdf(res, {
+      title: typeof title === 'string' ? title.slice(0, 120) : undefined,
+      result,
+      costBreakdown,
+      totalCost: Number(totalCost) || 0,
+      currency: typeof currency === 'string' && currency ? currency : '₹',
+    });
+  } catch (err) {
+    console.error('Foundation PDF generation failed:', err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to generate PDF report.' });
+    }
+  }
+});
 router.post('/mix', (req, res) => {
   const { volume, grade = 'M20' } = req.body || {};
   if (!isPositive(volume)) {

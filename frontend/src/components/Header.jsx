@@ -5,6 +5,7 @@ export default function Header({ activeTab, setActiveTab }) {
     { id: 'estimator', label: 'Estimator' },
     { id: 'rates', label: 'Material Rates' },
     { id: 'concrete', label: 'Concrete Mix' },
+    { id: 'foundation', label: 'Foundation' },
     { id: 'saved', label: 'Saved Projects' },
   ];
 

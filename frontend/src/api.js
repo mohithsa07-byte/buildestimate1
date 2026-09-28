@@ -75,7 +75,44 @@ export const downloadEstimatePdf = async (payload) => {
   a.remove();
   URL.revokeObjectURL(url);
 };
+export const fetchSoilTypes = () => request('/foundation/soil-types');
 
+export const calculateFoundation = (params) =>
+  request('/foundation', { method: 'POST', body: JSON.stringify(params) });
+
+export const downloadFoundationPdf = async (payload) => {
+  let res;
+  try {
+    res = await fetch(`${API_BASE_URL}/foundation/pdf`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw new Error('Cannot reach the server. Is the backend running?');
+  }
+
+  if (!res.ok) {
+    let message = `Failed to generate PDF (${res.status})`;
+    try {
+      const data = await res.json();
+      if (data?.error) message = data.error;
+    } catch {
+      /* response wasn't JSON */
+    }
+    throw new Error(message);
+  }
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'buildestimate-foundation-report.pdf';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+};
 // Multipart upload — do NOT set Content-Type, the browser adds the boundary.
 export const analyzePlan = async (file) => {
   const formData = new FormData();
