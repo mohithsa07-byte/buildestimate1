@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Foundation Estimation Logic & Formulas
  * Thumb-rule preliminary sizing for isolated, strip, and raft foundations —
  * same spirit as formulas.js: fast estimates for planning/costing, NOT a
@@ -221,8 +221,8 @@ export function suggestFoundationType({ floors, soilType, customSbcTM2, construc
 export function calculateFoundationCost(result, rates) {
   const { concrete, steelKg, pcc } = result;
   const cementBags = concrete.cementBags + pcc.mix.cementBags;
-  const sandTons = concrete.sandTons + pcc.mix.sandTons;
-  const aggregateTons = concrete.aggregateTons + pcc.mix.aggregateTons;
+  const sandTons = round(concrete.sandTons + pcc.mix.sandTons, 2);
+  const aggregateTons = round(concrete.aggregateTons + pcc.mix.aggregateTons, 2);
 
   const costBreakdown = {
     cement: Math.round(cementBags * rates.cementRatePerBag),

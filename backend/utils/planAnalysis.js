@@ -6,7 +6,7 @@
  */
 
 const NVIDIA_API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
-export const DEFAULT_MODEL = 'meta/llama-3.2-11b-vision-instruct';
+export const DEFAULT_MODEL = 'nvidia/nemotron-3.5-super-vl-120b-a12b';
 
 // Resolves and sanitizes the configured model, defaulting to the fast 11b vision model
 export function getModel() {
@@ -230,7 +230,7 @@ async function callNvidia(apiKey, dataUrl, { withJsonMode, model }) {
         ],
       },
     ],
-    max_tokens: 400,
+    max_tokens: 1500,
     temperature: 0.2,
     top_p: 0.7,
   };
