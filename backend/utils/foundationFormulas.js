@@ -34,8 +34,10 @@ const FOOTING_SELF_WEIGHT_FACTOR = 1.10; // adds ~10% for footing's own weight w
 
 const MIN_ISOLATED_DEPTH_M = 0.3;
 const MIN_STRIP_DEPTH_M = 0.3;
-const MIN_RAFT_THICKNESS_M = 0.15;
-const MAX_RAFT_THICKNESS_M = 0.45;
+const MIN_STRIP_WIDTH_M = 0.45;    // practical minimum under a 230 mm wall
+const MIN_ISOLATED_SIDE_M = 0.9;   // practical minimum pad size
+const MIN_RAFT_THICKNESS_M = 0.25;
+const MAX_RAFT_THICKNESS_M = 0.6;
 
 const ISOLATED_FOOTING_STEEL_KG_PER_M3 = 80;  // indicative, ~0.5-1% by volume
 const STRIP_FOOTING_STEEL_KG_PER_M3 = 65;
@@ -85,7 +87,7 @@ export function calculateIsolatedFooting(params) {
   const factoredLoadKN = loadPerColumnKN * FOOTING_SELF_WEIGHT_FACTOR;
 
   const rawAreaM2 = factoredLoadKN / sbcKNm2;
-  const sideM = roundUpTo5cm(Math.sqrt(rawAreaM2));
+  const sideM = Math.max(MIN_ISOLATED_SIDE_M, roundUpTo5cm(Math.sqrt(rawAreaM2)));
   const depthM = roundUpTo5cm(Math.max(MIN_ISOLATED_DEPTH_M, sideM / 5));
 
   const perFootingVolumeM3 = round(sideM * sideM * depthM, 3);
@@ -132,7 +134,7 @@ export function calculateStripFooting(params) {
   const loadPerMKN = Math.max(derivedLoadPerM, WALL_LOAD_PER_M_PER_FLOOR_KN * Number(floors) * 0.5);
   const factoredLoadPerMKN = loadPerMKN * FOOTING_SELF_WEIGHT_FACTOR;
 
-  const widthM = roundUpTo5cm(factoredLoadPerMKN / sbcKNm2);
+  const widthM = Math.max(MIN_STRIP_WIDTH_M, roundUpTo5cm(factoredLoadPerMKN / sbcKNm2));
   const depthM = roundUpTo5cm(Math.max(MIN_STRIP_DEPTH_M, widthM / 3));
 
   const totalVolumeM3 = round(widthM * depthM * lengthM, 3);
@@ -179,7 +181,7 @@ export function calculateRaftFoundation(params) {
   const raftAreaM2 = round(Math.max(footprintM2, requiredByLoadM2), 2);
 
   const thicknessM = roundUpTo5cm(
-    Math.min(MAX_RAFT_THICKNESS_M, Math.max(MIN_RAFT_THICKNESS_M, 0.15 + 0.03 * (Number(floors) - 1)))
+    Math.min(MAX_RAFT_THICKNESS_M, Math.max(MIN_RAFT_THICKNESS_M, 0.25 + 0.075 * (Number(floors) - 1)))
   );
 
   const totalVolumeM3 = round(raftAreaM2 * thicknessM, 2);

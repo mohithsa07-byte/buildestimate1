@@ -136,3 +136,30 @@ export const analyzePlan = async (file) => {
   }
   return data.extracted;
 };
+
+// ---- Foundation advisor ------------------------------------------------------
+export const recommendFoundation = (params) =>
+  request('/foundation/recommend', { method: 'POST', body: JSON.stringify(params) });
+
+export const analyzeSoilReport = async (file) => {
+  const formData = new FormData();
+  formData.append('report', file);
+
+  let res;
+  try {
+    res = await fetch(`${API_BASE_URL}/foundation/soil-report`, { method: 'POST', body: formData });
+  } catch {
+    throw new Error('Cannot reach the server. Is the backend running?');
+  }
+
+  let data = null;
+  try {
+    data = await res.json();
+  } catch {
+    /* non-JSON response */
+  }
+  if (!res.ok) {
+    throw new Error((data && data.error) || `Soil report analysis failed (${res.status})`);
+  }
+  return data.extracted;
+};

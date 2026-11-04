@@ -10,6 +10,8 @@ import {
   calculateCosts,
 } from '../utils/formulas.js';
 import { analyzePlan } from '../utils/planAnalysis.js';
+import { compareFoundations } from '../utils/foundationAdvisor.js';
+import { analyzeSoilReport } from '../utils/soilReportAnalysis.js';
 import { streamEstimatePdf, streamFoundationPdf } from '../utils/pdfReport.js';
 import {
   SOIL_PRESETS,
@@ -171,6 +173,106 @@ router.post('/analyze-plan', (req, res) => {
       res.json({ extracted });
     } catch (err) {
       res.status(err.status || 500).json({ error: err.message || 'Plan analysis failed.' });
+    }
+  });
+});
+
+// ---- foundation advisor: compare all types + read soil report -------------
+const isBlank = (v) => v === undefined || v === null || v === '';
+
+router.post('/foundation/recommend', async (req, res, next) => {
+  try {
+    const b = req.body || {};
+    if (!isPositive(b.builtUpArea)) {
+      return res.status(400).json({ error: 'Built-up area must be a positive number' });
+    }
+    if (!isPositive(b.floors) || !Number.isInteger(Number(b.floors)) || Number(b.floors) > 100) {
+      return res.status(400).json({ error: 'Number of floors must be a whole number between 1 and 100' });
+    }
+    if (!isBlank(b.constructionType) && !['framed', 'load_bearing'].includes(b.constructionType)) {
+      return res.status(400).json({ error: 'constructionType must be "framed" or "load_bearing"' });
+    }
+
+    const hasCustomSbc = !isBlank(b.customSbcTM2);
+    if (hasCustomSbc) {
+      if (!isPositive(b.customSbcTM2) || Number(b.customSbcTM2) > 150) {
+        return res.status(400).json({ error: 'Soil bearing capacity must be a positive number (t/m²), up to 150' });
+      }
+    } else if (!b.soilType || !SOIL_PRESETS[b.soilType]) {
+      return res.status(400).json({ error: 'Choose a soil type or enter a soil bearing capacity' });
+    }
+
+    const concreteGrade = b.concreteGrade || 'M20';
+    if (!NOMINAL_MIXES[concreteGrade]) {
+      return res.status(400).json({ error: `Unknown concrete grade "${concreteGrade}"` });
+    }
+    if (!isBlank(b.numberOfColumns) && (!isPositive(b.numberOfColumns) || !Number.isInteger(Number(b.numberOfColumns)) || Number(b.numberOfColumns) > 500)) {
+      return res.status(400).json({ error: 'Number of columns must be a whole number between 1 and 500' });
+    }
+    if (!isBlank(b.wallLengthM) && (!isPositive(b.wallLengthM) || Number(b.wallLengthM) > 5000)) {
+      return res.status(400).json({ error: 'Wall length must be a positive number of metres' });
+    }
+    if (!isBlank(b.plotAreaSqFt) && !isPositive(b.plotAreaSqFt)) {
+      return res.status(400).json({ error: 'Plot area must be a positive number' });
+    }
+    if (!isBlank(b.foundingDepthM) && (!isPositive(b.foundingDepthM) || Number(b.foundingDepthM) < 0.5 || Number(b.foundingDepthM) > 6)) {
+      return res.status(400).json({ error: 'Founding depth must be between 0.5 and 6 metres' });
+    }
+    if (!isBlank(b.excavationRatePerM3) && (!isPositive(b.excavationRatePerM3) || Number(b.excavationRatePerM3) > 100000)) {
+      return res.status(400).json({ error: 'Excavation rate must be a positive number' });
+    }
+    if (!isBlank(b.waterTableDepthM) && (!Number.isFinite(Number(b.waterTableDepthM)) || Number(b.waterTableDepthM) < 0 || Number(b.waterTableDepthM) > 100)) {
+      return res.status(400).json({ error: 'Water table depth must be between 0 and 100 metres' });
+    }
+
+    const stored = await loadRates();
+    const { rates, error } = sanitizeRates(b.rates && typeof b.rates === 'object' ? b.rates : {}, stored);
+    if (error) return res.status(400).json({ error });
+
+    const text = (v, max) => (typeof v === 'string' && v.trim() ? v.replace(/[\u0000-\u001f]+/g, ' ').trim().slice(0, max) : undefined);
+    const num = (v) => (isBlank(v) ? undefined : Number(v));
+
+    const result = compareFoundations(
+      {
+        builtUpArea: Number(b.builtUpArea),
+        floors: Number(b.floors),
+        constructionType: b.constructionType,
+        soilType: hasCustomSbc ? undefined : b.soilType,
+        customSbcTM2: hasCustomSbc ? Number(b.customSbcTM2) : undefined,
+        concreteGrade,
+        numberOfColumns: num(b.numberOfColumns),
+        wallLengthM: num(b.wallLengthM),
+        plotAreaSqFt: num(b.plotAreaSqFt),
+        foundingDepthM: num(b.foundingDepthM),
+        excavationRatePerM3: num(b.excavationRatePerM3),
+        waterTableDepthM: num(b.waterTableDepthM),
+        soilDescription: text(b.soilDescription, 200),
+        reportRecommendation: text(b.reportRecommendation, 240),
+      },
+      rates
+    );
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/foundation/soil-report', (req, res) => {
+  upload.single('report')(req, res, async (uploadErr) => {
+    if (uploadErr) {
+      const message = uploadErr.code === 'LIMIT_FILE_SIZE'
+        ? 'File is too large (8 MB max).'
+        : 'Could not read the uploaded file.';
+      return res.status(400).json({ error: message });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded (expected field "report").' });
+    }
+    try {
+      const extracted = await analyzeSoilReport(req.file.buffer, req.file.mimetype);
+      res.json({ extracted });
+    } catch (err) {
+      res.status(err.status || 500).json({ error: err.message || 'Soil report analysis failed.' });
     }
   });
 });

@@ -68,6 +68,60 @@ function MixDetails({ project }) {
   );
 }
 
+const FOUNDATION_LABELS = {
+  isolated: 'Isolated (Pad) Footing',
+  strip: 'Strip (Wall) Footing',
+  raft: 'Raft (Mat) Foundation',
+};
+
+function FoundationDetails({ project }) {
+  const params = project.parameters || {};
+  const r = project.results || {};
+  const c = r.costBreakdown || {};
+  const m = r.combinedMaterials || {};
+  const f = r.footing || {};
+  const cur = r.currency || '₹';
+  const size =
+    r.foundationType === 'isolated' ? `${f.sideM} × ${f.sideM} × ${f.depthM} m`
+      : r.foundationType === 'strip' ? `${f.widthM} m wide × ${f.depthM} m deep`
+        : `${f.areaM2} m² × ${f.thicknessM} m`;
+  const comparison = Array.isArray(r.advisor?.comparison) ? r.advisor.comparison : [];
+
+  return (
+    <>
+      <div className="text-xs text-gray-500 bg-gray-50 p-2.5 rounded-xl space-y-1">
+        <p>Type: <span className="font-semibold text-gray-700">{FOUNDATION_LABELS[r.foundationType] || r.foundationType}</span></p>
+        {params.builtUpArea ? <p>Built-Up Area / floor: <span className="font-semibold text-gray-700">{Number(params.builtUpArea).toFixed(0)} sq.ft</span></p> : null}
+        {params.floors ? <p>Floors: <span className="font-semibold text-gray-700">{params.floors}</span></p> : null}
+        {r.inputs?.sbcTM2 ? <p>Soil bearing capacity: <span className="font-semibold text-gray-700">{r.inputs.sbcTM2} t/m²</span></p> : null}
+        <p>Size: <span className="font-semibold text-gray-700">{size}</span></p>
+      </div>
+
+      <div className="text-xs text-gray-700 space-y-1.5 pt-2 border-t border-gray-100">
+        <p className="font-semibold text-gray-900 text-sm mb-1">Breakdown & Quantities:</p>
+        <Row label="Cement" value={`${m.cementBags ?? 0} bags`} cost={inr(c.cement, cur)} />
+        <Row label="Sand" value={`${m.sandTons ?? 0} t`} cost={inr(c.sand, cur)} />
+        <Row label="Aggregate" value={`${m.aggregateTons ?? 0} t`} cost={inr(c.aggregate, cur)} />
+        <Row label="Steel" value={`${r.steelTons ?? 0} t`} cost={inr(c.steel, cur)} />
+        <div className="flex justify-between items-center text-sm font-bold text-emerald-700 pt-2 border-t border-gray-200">
+          <span>Materials Total:</span>
+          <span>{inr(r.totalCost, cur)}</span>
+        </div>
+        {comparison.length > 0 && (
+          <div className="pt-2 border-t border-dashed border-gray-200 text-gray-500 space-y-0.5">
+            <p className="font-semibold text-gray-700">Compared (materials + excavation):</p>
+            {comparison.map((o) => (
+              <p key={o.type}>
+                {o.label}: {inr(o.totalCost, cur)}{o.status === 'recommended' ? ' ✓ best value' : o.status === 'not_suitable' ? ' (not suitable)' : ''}
+              </p>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 export default function SavedProjects() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -133,13 +187,14 @@ export default function SavedProjects() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {projects.map((p) => {
             const isMix = p.type === 'mix' || (p.volume !== undefined && !p.parameters);
+            const isFoundation = !isMix && !!(p.results && p.results.foundationType);
             return (
               <div key={p.id} className="bg-white p-5 border rounded-2xl shadow-sm space-y-3 relative group">
                 <div className="flex justify-between items-start">
                   <div>
                     <h3 className="font-bold text-lg text-gray-800">{p.title}</h3>
                     <p className="text-xs text-gray-400">
-                      {isMix ? 'Concrete mix' : 'Building estimate'} ·{' '}
+                      {isMix ? 'Concrete mix' : isFoundation ? 'Foundation estimate' : 'Building estimate'} ·{' '}
                       {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : 'Recent'}
                     </p>
                   </div>
@@ -151,7 +206,7 @@ export default function SavedProjects() {
                     ✕
                   </button>
                 </div>
-                {isMix ? <MixDetails project={p} /> : <EstimateDetails project={p} />}
+                {isMix ? <MixDetails project={p} /> : isFoundation ? <FoundationDetails project={p} /> : <EstimateDetails project={p} />}
               </div>
             );
           })}
