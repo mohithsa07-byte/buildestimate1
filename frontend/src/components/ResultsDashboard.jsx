@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import RoomBreakdown from './RoomBreakdown';
 import { computeRoomMaterials } from '../utils/roomMaterials';
-import { downloadEstimatePdf } from '../api';
+import { downloadEstimatePdf, downloadEstimateExcel } from '../api';
 
 export default function ResultsDashboard({ result }) {
   const [isExporting, setIsExporting] = useState(false);

@@ -1,5 +1,6 @@
 import express from 'express';
 import multer from 'multer';
+import ExcelJS from 'exceljs';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -148,7 +149,138 @@ async function estimateHandler(req, res, next) {
 }
 router.post('/estimate', estimateHandler);
 router.post('/calculate', estimateHandler); // alias
+// ---- Dynamic Excel export -----------------------------------------------
+router.post('/estimate/excel', async (req, res, next) => {
+  try {
+    const {
+      parameters = {},
+      quantities = {},
+      costBreakdown = {},
+      totalCost = 0,
+      currency = '₹'
+    } = req.body || {};
 
+    if (!Object.keys(quantities).length || !Object.keys(costBreakdown).length) {
+      return res.status(400).json({
+        error: 'Calculate an estimate before downloading Excel.'
+      });
+    }
+
+    const workbook = new ExcelJS.Workbook();
+
+    workbook.creator = 'BuildEstimate';
+    workbook.subject = 'Construction Cost Estimate';
+    workbook.title = 'Detailed Construction Estimate';
+    workbook.created = new Date();
+
+    // SHEET 1: PROJECT SUMMARY
+    const summary = workbook.addWorksheet('Project Summary');
+
+    summary.columns = [
+      { width: 32 },
+      { width: 25 }
+    ];
+
+    summary.addRow(['BUILDESTIMATE']);
+    summary.addRow(['CONSTRUCTION COST ESTIMATE']);
+    summary.addRow([]);
+    summary.addRow(['Project Parameter', 'Value']);
+
+    summary.addRows([
+      ['Built-up Area (sq.ft)', parameters.builtUpArea || 0],
+      ['Number of Floors', parameters.floors || 0],
+      ['Floor Height (ft)', parameters.floorHeight || 0],
+      ['Wall Thickness (inches)', parameters.wallThickness || ''],
+      ['Concrete Grade', parameters.concreteGrade || ''],
+      ['Estimated Total Cost', Number(totalCost) || 0]
+    ]);
+
+    summary.mergeCells('A1:B1');
+    summary.mergeCells('A2:B2');
+
+    summary.getRow(1).font = { bold: true, size: 18 };
+    summary.getRow(2).font = { bold: true, size: 13 };
+    summary.getRow(4).font = { bold: true };
+    summary.getRow(10).font = { bold: true };
+
+    summary.getCell('B10').numFmt = `"${currency}"#,##0.00`;
+
+    // SHEET 2: MATERIAL QUANTITIES
+    const materials = workbook.addWorksheet('Material Quantities');
+
+    materials.columns = [
+      { header: 'Material', key: 'material', width: 30 },
+      { header: 'Quantity', key: 'quantity', width: 20 },
+      { header: 'Unit', key: 'unit', width: 15 }
+    ];
+
+    materials.addRows([
+      ['Cement', quantities.cementBags || 0, 'Bags'],
+      ['Sand', quantities.sandTons || 0, 'Tons'],
+      ['Coarse Aggregate', quantities.aggregateTons || 0, 'Tons'],
+      ['Bricks', quantities.brickQuantity || 0, 'Pieces'],
+      ['TMT Steel', quantities.steelKg || 0, 'Kg'],
+      ['Steel', quantities.steelTons || 0, 'Tons'],
+      ['Labour', quantities.laborDays || 0, 'Days']
+    ]);
+
+    // SHEET 3: COST BREAKDOWN
+    const costs = workbook.addWorksheet('Cost Breakdown');
+
+    costs.columns = [
+      { header: 'Description', key: 'description', width: 30 },
+      { header: 'Amount', key: 'amount', width: 20 }
+    ];
+
+    costs.addRows([
+      ['Cement', costBreakdown.cement || 0],
+      ['Sand', costBreakdown.sand || 0],
+      ['Coarse Aggregate', costBreakdown.aggregate || 0],
+      ['Bricks', costBreakdown.bricks || 0],
+      ['Steel', costBreakdown.steel || 0],
+      ['Labour', costBreakdown.labor || 0]
+    ]);
+
+    costs.addRow(['Total Estimated Cost', { formula: 'SUM(B2:B7)' }]);
+
+    costs.getRow(1).font = { bold: true };
+    costs.getRow(8).font = { bold: true };
+    costs.getColumn(2).numFmt = `"${currency}"#,##0.00`;
+
+    // PROFESSIONAL HEADER FORMATTING
+    [materials, costs].forEach(sheet => {
+      sheet.getRow(1).font = {
+        bold: true,
+        color: { argb: 'FFFFFFFF' }
+      };
+
+      sheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF17365D' }
+      };
+
+      sheet.views = [{ state: 'frozen', ySplit: 1 }];
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="BuildEstimate_Project_Estimate.xlsx"'
+    );
+
+    res.send(Buffer.from(buffer));
+
+  } catch (error) {
+    next(error);
+  }
+});
 // ---- concrete mix -------------------------------------------------------
 // ---- AI floor-plan analysis ---------------------------------------------
 const upload = multer({

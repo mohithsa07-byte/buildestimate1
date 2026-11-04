@@ -163,3 +163,43 @@ export const analyzeSoilReport = async (file) => {
   }
   return data.extracted;
 };
+// ---- Dynamic Excel estimate download -----------------------------------
+export const downloadEstimateExcel = async (payload) => {
+  let res;
+
+  try {
+    res = await fetch(`${API_BASE_URL}/estimate/excel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw new Error('Cannot reach the server. Is the backend running?');
+  }
+
+  if (!res.ok) {
+    let message = `Failed to generate Excel (${res.status})`;
+
+    try {
+      const data = await res.json();
+      if (data?.error) message = data.error;
+    } catch {
+      // Response wasn't JSON.
+    }
+
+    throw new Error(message);
+  }
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'BuildEstimate_Project_Estimate.xlsx';
+
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  URL.revokeObjectURL(url);
+};
